@@ -1,3 +1,3 @@
-# XCodeCoverage2SonarQubeGeneric
+# XcodeCodeCoverage2SQ
 
 A description of this package.
