@@ -46,24 +46,6 @@ struct XCRunTool {
         return std.components(separatedBy: "\n")
     }
 
-    /**
-        Example: Some lines that do not require coverage (comments, etc) have a star (*).
-      1: *
-      2: *
-      3: *
-      4: *
-      5: *
-      6: *
-      7: *
-      8: *
-      9: *
-     19: 9
-     20: 9
-     21: *
-     22: 0
-     23: 0
-     */
-    
     let regex = try! NSRegularExpression(pattern: "^\\s*(\\d+):\\s*(\\*|\\d+)")
     let regexLineGroup = 1
     let regexCoverageGroup = 2

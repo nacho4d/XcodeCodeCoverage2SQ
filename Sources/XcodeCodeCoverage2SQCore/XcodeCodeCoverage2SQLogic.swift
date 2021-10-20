@@ -8,27 +8,43 @@ public struct XcodeCodeCoverage2SQLogic {
     public init() {
     }
 
+
+    func getFilePaths(xcarchivePath: String, skippingSufixes: [String]) -> [String] {
+
+        let suffixes = skippingSufixes.filter { !$0.isEmpty }
+
+        let filePaths = xcrunTool.getFilePaths(xcarchivePath: xcarchivePath).filter { filePath in
+            if filePath.isEmpty {
+                // Usually the last filePath is empty
+                return false
+            }
+            for skipSuffix in suffixes {
+                if filePath.hasSuffix(skipSuffix) {
+                    // File must be skipped
+                    return false
+                }
+            }
+            return true
+        }
+        return filePaths
+    }
+
     func convertFile(xcarchivePath: String, filePath: String, index: Int) -> String {
         //stderr("Doing: \(index) \(filePath)")
-
         let lines = xcrunTool.getCoverageLines(xcarchivePath: xcarchivePath, filePath: filePath, index: index)
-        let xml = lines.compactMap { line -> String? in
-            if let lineCoverage = xcrunTool.parseCoverageLine(line) {
-                let covered = lineCoverage.coverage > 0 ? "false" : "true"
-                return "    <lineToCover lineNumber=\"\(lineCoverage.lineNum)\" covered=\"\(covered)\"/>"
+        let linesAsXml = lines.compactMap { line -> String? in
+            guard let lineInfo = xcrunTool.parseCoverageLine(line) else {
+                return nil
             }
-            return  nil
+            let covered = lineInfo.coverage > 0 ? "false" : "true"
+            return "    <lineToCover lineNumber=\"\(lineInfo.lineNum)\" covered=\"\(covered)\"/>"
         }
-        // if xml.isEmpty {
-        //     return nil
-        // }
-        return "  <file path=\"\(filePath)\">\n\(xml.joined(separator: "\n"))\n  </file>"
+        return "  <file path=\"\(filePath)\">\n\(linesAsXml.joined(separator: "\n"))\n  </file>"
     }
 
     /// Extract coverage for all files inside the xc result file and convert it to sonarqube generic XML format
     private func convertCoverage(xcarchivePath: String, skipSuffixes: [String]) {
-        let filePaths = xcrunTool.getFilePaths(xcarchivePath: xcarchivePath)
-        let suffixes = skipSuffixes.filter { !$0.isEmpty }
+        let filePaths = getFilePaths(xcarchivePath: xcarchivePath, skippingSufixes: skipSuffixes)
 
         stdout("<coverage version=\"1\">")
 
@@ -40,15 +56,6 @@ public struct XcodeCodeCoverage2SQLogic {
         concurrentQueue.async {
             DispatchQueue.concurrentPerform(iterations: filePaths.count) { (fileIndex) in
                 let filePath = filePaths[fileIndex]
-                if filePath.isEmpty {
-                    // TODO: Why this happens?
-                    return
-                }
-                for skipSuffix in suffixes {
-                    if filePath.hasSuffix(skipSuffix) {
-                        return
-                    }
-                }
                 let fileCoverage = self.convertFile(xcarchivePath: xcarchivePath, filePath: filePath, index: fileIndex)
                 serialQueue.async {
                     //stderr("Finished: \(fileIndex)")
@@ -57,7 +64,6 @@ public struct XcodeCodeCoverage2SQLogic {
             }
             group.leave()
         }
-
         group.wait()
 
         stdout("</coverage>")
