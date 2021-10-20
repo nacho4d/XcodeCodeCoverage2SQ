@@ -1,9 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Guillermo Ignacio Enriquez Gutierrez on 2021/10/20.
-//
 
 import Foundation
 
